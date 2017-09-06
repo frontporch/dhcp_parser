@@ -1,8 +1,8 @@
-#![feature(trace_macros)]
-#![feature(ip_addr)]
-#![feature(plugin)]
+// #![feature(trace_macros)]
+// #![feature(ip_addr)]
+// #![feature(plugin)]
 
-#[plugin] #[no_link] extern crate rest_easy;
+// #[plugin] #[no_link] extern crate rest_easy;
 
 /// DHCP Parsing
 ///
@@ -85,7 +85,7 @@ pub struct RawMessage<'a> {
 }
 
 #[allow(dead_code)]
-fn parse_message<'a>(bytes: &'a [u8]) -> Result<RawMessage<'a>> {
+pub fn parse_message<'a>(bytes: &'a [u8]) -> Result<RawMessage<'a>> {
     match _parse_message(bytes) {
         IResult::Done(inp, msg) => {
             if inp.len() > 0 {
@@ -150,70 +150,24 @@ mod tests {
     use super::op::{Op};
     use super::htype::{Htype};
 
-#[test]
-fn test_parse_message() {
-    let test_message: Vec<u8> = vec![
-        1u8,                                    // op
-        2,                                      // htype
-        3,                                      // hlen
-        4,                                      // ops
-        5, 6, 7, 8,                             // xid
-        9, 10,                                  // secs
-        11, 12,                                 // flags
-        13, 14, 15, 16,                         // ciaddr
-        17, 18, 19, 20,                         // yiaddr
-        21, 22, 23, 24,                         // siaddr
-        25, 26, 27, 28,                         // giaddr
-        29, 30, 31, 32,
-        33, 34, 35, 36,
-        37, 38, 39, 40,
-        41, 42, 43, 44,                         // chaddr
-        45, 46, 47, 48, 49, 50, 51, 52,
-        53, 54, 55, 56, 57, 58, 59, 60,
-        61, 62, 63, 64, 65, 66, 67, 68,
-        69, 70, 71, 72, 73, 74, 75, 76,
-
-        77, 78, 79, 80, 81, 82, 83, 84,
-        85, 86, 87, 88, 89, 90, 91, 92,
-        93, 94, 95, 96, 97, 98, 99, 100,
-        101, 102, 103, 104, 105, 106, 107, 0,   // sname: "-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijk",
-
-        109, 110, 111, 112, 113, 114, 115, 116,
-        117, 118, 119, 120, 121, 122, 123, 124,
-        125, 109, 110, 111, 112, 113, 114, 115,
-        116, 117, 118, 119, 120, 121, 122, 123,
-
-        124, 125, 109, 110, 111, 112, 113, 114,
-        115, 116, 117, 118, 119, 120, 121, 122,
-        123, 124, 125, 109, 110, 111, 112, 113,
-        114, 115, 116, 117, 118, 119, 120, 121,
-
-        122, 123, 124, 125, 109, 110, 111, 112,
-        113, 114, 115, 116, 117, 118, 119, 120,
-        121, 122, 123, 124, 125, 109, 110, 111,
-        112, 113, 114, 115, 116, 117, 118, 119,
-
-        120, 121, 122, 123, 124, 125, 109, 110,
-        111, 112, 113, 114, 115, 116, 117, 118,
-        119, 120, 121, 122, 123, 124, 125, 109,
-        0, 0, 0, 0, 0, 0, 0, 0,                 // file: "mnopqrstuvwxyz{|}mnopqrstuvwxyz{|}mnopqrstuvwxyz{|}mnopqrstuvwxyz{|}mnopqrstuvwxyz{|}mnopqrstuvwxyz{|}mnopqrstuvwxyz{|}m",
-
-        99, 130, 83, 99,                        // magic cookie
-    ];
-    assert_eq!(parse_message(&test_message).unwrap(), RawMessage {
-        op: Op::BootRequest,
-        htype: Htype::Experimental_Ethernet_3mb,
-        hlen: 3,
-        hops: 4,
-        xid: 84281096,
-        secs: 2314,
-        flags: 2828,
-        ciaddr: str::FromStr::from_str("13.14.15.16").unwrap(),
-        yiaddr: str::FromStr::from_str("17.18.19.20").unwrap(),
-        siaddr: str::FromStr::from_str("21.22.23.24").unwrap(),
-        giaddr: str::FromStr::from_str("25.26.27.28").unwrap(),
-        chaddr: &vec![29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44][..],
-        sname: &vec![
+    #[test]
+    fn test_parse_message() {
+        let test_message: Vec<u8> = vec![
+            1u8,                                    // op
+            2,                                      // htype
+            3,                                      // hlen
+            4,                                      // ops
+            5, 6, 7, 8,                             // xid
+            9, 10,                                  // secs
+            11, 12,                                 // flags
+            13, 14, 15, 16,                         // ciaddr
+            17, 18, 19, 20,                         // yiaddr
+            21, 22, 23, 24,                         // siaddr
+            25, 26, 27, 28,                         // giaddr
+            29, 30, 31, 32,
+            33, 34, 35, 36,
+            37, 38, 39, 40,
+            41, 42, 43, 44,                         // chaddr
             45, 46, 47, 48, 49, 50, 51, 52,
             53, 54, 55, 56, 57, 58, 59, 60,
             61, 62, 63, 64, 65, 66, 67, 68,
@@ -222,9 +176,8 @@ fn test_parse_message() {
             77, 78, 79, 80, 81, 82, 83, 84,
             85, 86, 87, 88, 89, 90, 91, 92,
             93, 94, 95, 96, 97, 98, 99, 100,
-            101, 102, 103, 104, 105, 106, 107, 0,
-        ][..],
-        file: &vec![
+            101, 102, 103, 104, 105, 106, 107, 0,   // sname: "-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijk",
+
             109, 110, 111, 112, 113, 114, 115, 116,
             117, 118, 119, 120, 121, 122, 123, 124,
             125, 109, 110, 111, 112, 113, 114, 115,
@@ -243,11 +196,57 @@ fn test_parse_message() {
             120, 121, 122, 123, 124, 125, 109, 110,
             111, 112, 113, 114, 115, 116, 117, 118,
             119, 120, 121, 122, 123, 124, 125, 109,
-            0, 0, 0, 0, 0, 0, 0, 0,
-        ][..],
-        options: vec![],
-    });
+            0, 0, 0, 0, 0, 0, 0, 0,                 // file: "mnopqrstuvwxyz{|}mnopqrstuvwxyz{|}mnopqrstuvwxyz{|}mnopqrstuvwxyz{|}mnopqrstuvwxyz{|}mnopqrstuvwxyz{|}mnopqrstuvwxyz{|}m",
 
-}
+            99, 130, 83, 99,                        // magic cookie
+        ];
+        assert_eq!(parse_message(&test_message).unwrap(), RawMessage {
+            op: Op::BootRequest,
+            htype: Htype::Experimental_Ethernet_3mb,
+            hlen: 3,
+            hops: 4,
+            xid: 84281096,
+            secs: 2314,
+            flags: 2828,
+            ciaddr: str::FromStr::from_str("13.14.15.16").unwrap(),
+            yiaddr: str::FromStr::from_str("17.18.19.20").unwrap(),
+            siaddr: str::FromStr::from_str("21.22.23.24").unwrap(),
+            giaddr: str::FromStr::from_str("25.26.27.28").unwrap(),
+            chaddr: &vec![29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44][..],
+            sname: &vec![
+                45, 46, 47, 48, 49, 50, 51, 52,
+                53, 54, 55, 56, 57, 58, 59, 60,
+                61, 62, 63, 64, 65, 66, 67, 68,
+                69, 70, 71, 72, 73, 74, 75, 76,
 
+                77, 78, 79, 80, 81, 82, 83, 84,
+                85, 86, 87, 88, 89, 90, 91, 92,
+                93, 94, 95, 96, 97, 98, 99, 100,
+                101, 102, 103, 104, 105, 106, 107, 0,
+            ][..],
+            file: &vec![
+                109, 110, 111, 112, 113, 114, 115, 116,
+                117, 118, 119, 120, 121, 122, 123, 124,
+                125, 109, 110, 111, 112, 113, 114, 115,
+                116, 117, 118, 119, 120, 121, 122, 123,
+
+                124, 125, 109, 110, 111, 112, 113, 114,
+                115, 116, 117, 118, 119, 120, 121, 122,
+                123, 124, 125, 109, 110, 111, 112, 113,
+                114, 115, 116, 117, 118, 119, 120, 121,
+
+                122, 123, 124, 125, 109, 110, 111, 112,
+                113, 114, 115, 116, 117, 118, 119, 120,
+                121, 122, 123, 124, 125, 109, 110, 111,
+                112, 113, 114, 115, 116, 117, 118, 119,
+
+                120, 121, 122, 123, 124, 125, 109, 110,
+                111, 112, 113, 114, 115, 116, 117, 118,
+                119, 120, 121, 122, 123, 124, 125, 109,
+                0, 0, 0, 0, 0, 0, 0, 0,
+            ][..],
+            options: vec![],
+        });
+
+    }
 }
