@@ -9,7 +9,23 @@ use std::net::{IpAddr, Ipv4Addr};
 use num::{FromPrimitive};
 
 pub fn parse(bytes: &[u8]) -> Result<Vec<DhcpOption>> {
-    Ok(vec![])
+    let mut vec = Vec::new();
+    if bytes.len() > 2 {
+        let mut remaining_bytes = Some(bytes);
+        while let Some(i) = remaining_bytes {
+            if let IResult::Done(rest, opt) = dhcp_option(i) {
+                if opt == DhcpOption::End {
+                    remaining_bytes = None;
+                } else {
+                    remaining_bytes = Some(rest);
+                }
+                vec.push(opt);
+            } else {
+                remaining_bytes = None;
+            }
+        }
+    }
+    Ok(vec)
 }
 
 fn u32_to_ip(a: u32) -> IpAddr {
