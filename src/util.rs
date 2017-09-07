@@ -3,7 +3,7 @@ use nom::{IResult};
 use super::{Result, Error};
 
 pub fn take_rest(input: &[u8]) -> IResult<&[u8], &[u8]> {
-    IResult::Done(b"", input)
+    IResult::Done(&input[input.len()..], input)
 }
 
 #[allow(dead_code)]
