@@ -80,7 +80,7 @@ pub enum DhcpOption {
 
 enum_from_primitive! {
 #[derive(Debug, PartialEq)]
-enum NodeType {
+pub enum NodeType {
     B = 1,
     P = 2,
     M = 4,
@@ -90,7 +90,7 @@ enum NodeType {
 
 enum_from_primitive! {
 #[derive(Debug, PartialEq)]
-enum OptionOverloadType {
+pub enum OptionOverloadType {
     File = 1,
     Sname = 2,
     FileAndSname = 3,
@@ -99,7 +99,7 @@ enum OptionOverloadType {
 
 enum_from_primitive! {
 #[derive(Debug, PartialEq)]
-enum DhcpMessageTypes {
+pub enum DhcpMessageTypes {
     Discover = 1,
     Offer = 2,
     Request = 3,

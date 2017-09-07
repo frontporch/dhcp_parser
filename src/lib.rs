@@ -67,21 +67,21 @@ pub type Result<T> = ::std::result::Result<T, Error>;
 /// bytes in RawMessage. Something using this should probably change
 /// them to `Option<String>`s in a higher-level datatype.
 pub struct RawMessage<'a> {
-    op: Op,
-    htype: Htype,
-    hlen: u8,
-    hops: u8,
-    xid: u32,
-    secs: u16,
-    flags: u16,
-    ciaddr: IpAddr,
-    yiaddr: IpAddr,
-    siaddr: IpAddr,
-    giaddr: IpAddr,
-    chaddr: &'a [u8],  // 16 bytes
-    sname: &'a [u8],  // 64 bytes
-    file: &'a [u8],  // 128 bytes
-    options: Vec<DhcpOption>,
+    pub op: Op,
+    pub htype: Htype,
+    pub hlen: u8,
+    pub hops: u8,
+    pub xid: u32,
+    pub secs: u16,
+    pub flags: u16,
+    pub ciaddr: Ipv4Addr,
+    pub yiaddr: Ipv4Addr,
+    pub siaddr: Ipv4Addr,
+    pub giaddr: Ipv4Addr,
+    pub chaddr: &'a [u8],  // 16 bytes
+    pub sname: &'a [u8],  // 64 bytes
+    pub file: &'a [u8],  // 128 bytes
+    pub options: Vec<DhcpOption>,
 }
 
 #[allow(dead_code)]
@@ -111,10 +111,10 @@ named!(_parse_message(&'a [u8]) -> RawMessage<'a>,
         pxid: be_u32 ~
         psecs: be_u16 ~
         pflags: be_u16 ~
-        pciaddr: map!(be_u32, |a| IpAddr::V4(Ipv4Addr::from(a))) ~
-        pyiaddr: map!(be_u32, |a| IpAddr::V4(Ipv4Addr::from(a))) ~
-        psiaddr: map!(be_u32, |a| IpAddr::V4(Ipv4Addr::from(a))) ~
-        pgiaddr: map!(be_u32, |a| IpAddr::V4(Ipv4Addr::from(a))) ~
+        pciaddr: map!(be_u32, |a| Ipv4Addr::from(a)) ~
+        pyiaddr: map!(be_u32, |a| Ipv4Addr::from(a)) ~
+        psiaddr: map!(be_u32, |a| Ipv4Addr::from(a)) ~
+        pgiaddr: map!(be_u32, |a| Ipv4Addr::from(a)) ~
         pchaddr: take!(16) ~
         psname: take!(64) ~
         pfile: take!(128) ~
