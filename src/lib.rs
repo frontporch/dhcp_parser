@@ -12,9 +12,9 @@
 #[macro_use] extern crate enum_primitive;
 extern crate num;
 
-mod htype;
-mod op;
-mod options;
+pub mod htype;
+pub mod op;
+pub mod options;
 mod util;
 
 use std::fmt;
