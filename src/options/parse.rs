@@ -10,7 +10,7 @@ use num::{FromPrimitive};
 
 pub fn parse(bytes: &[u8]) -> Result<Vec<DhcpOption>> {
     let mut vec = Vec::new();
-    if bytes.len() > 2 {
+    if bytes.len() > 0 {
         let mut remaining_bytes = Some(bytes);
         while let Some(i) = remaining_bytes {
             if let IResult::Done(rest, opt) = dhcp_option(i) {
@@ -446,9 +446,10 @@ named!(dhcp_option(&'a [u8]) -> DhcpOption, alt!(
 );
 
 #[cfg(test)] mod tests {
-    use options::DhcpOption::{Router};
-    use super::{router};
-    use nom::{IResult};
+    use options::DhcpOption;
+    use options::DhcpOption::{ Router };
+    use super::{ parse, router };
+    use nom::IResult;
     use std::net::{IpAddr, Ipv4Addr};
 
     #[test]
@@ -468,6 +469,65 @@ named!(dhcp_option(&'a [u8]) -> DhcpOption, alt!(
                                           IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1))]));
             },
             e => panic!("Result was {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_option_000_pad_single() {
+        let option = vec![
+            0u8
+        ];
+        let expected: Vec<DhcpOption> = vec![
+            DhcpOption::Pad
+        ];
+        let actual = parse(&option).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_option_000_pad_multiple() {
+        let option = vec![
+            0u8,
+            0u8,
+            0u8
+        ];
+        let expected: Vec<DhcpOption> = vec![
+            DhcpOption::Pad,
+            DhcpOption::Pad,
+            DhcpOption::Pad
+        ];
+        let actual = parse(&option).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_option_053_dhcp_message_type() {
+        use options::DhcpMessageTypes;
+        // Parse all known options
+        let options = vec![
+            vec![ 53u8, 3u8, 1u8 ], // Discover
+            vec![ 53u8, 3u8, 2u8 ], // Offer
+            vec![ 53u8, 3u8, 3u8 ], // Request
+            vec![ 53u8, 3u8, 4u8 ], // Decline
+            vec![ 53u8, 3u8, 5u8 ], // Ack
+            vec![ 53u8, 3u8, 6u8 ], // Nak
+            vec![ 53u8, 3u8, 7u8 ], // Release
+        ];
+        let message_types = vec![
+            DhcpMessageTypes::Discover,
+            DhcpMessageTypes::Offer,
+            DhcpMessageTypes::Request,
+            DhcpMessageTypes::Decline,
+            DhcpMessageTypes::Ack,
+            DhcpMessageTypes::Nak,
+            DhcpMessageTypes::Release,
+        ];
+        for (index, expected) in message_types.iter().enumerate() {
+            if let &DhcpOption::MessageType(ref actual) = parse(&options[index]).unwrap().first().unwrap() {
+                assert_eq!(expected, actual);
+            } else {
+                panic!("Failed to parse MessageType: {:?}", expected);
+            }
         }
     }
 }
