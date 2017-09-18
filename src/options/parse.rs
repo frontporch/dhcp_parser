@@ -501,6 +501,40 @@ named!(dhcp_option(&'a [u8]) -> DhcpOption, alt!(
     }
 
     #[test]
+    fn test_option_050_requested_ip_address() {
+        let option = vec![
+            50u8,
+            4u8,
+            192u8,
+            168u8,
+            1u8,
+            1u8,
+        ];
+        let expected: Vec<DhcpOption> = vec![
+            DhcpOption::RequestedIpAddress(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1)))
+        ];
+        let actual = parse(&option).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_option_051_ip_address_lease_time() {
+        let option = vec![
+            51u8,
+            4u8,
+            0u8,
+            0u8,
+            4u8,
+            176u8,
+        ];
+        let expected: Vec<DhcpOption> = vec![
+            DhcpOption::IpAddressLeaseTime(1200)
+        ];
+        let actual = parse(&option).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
     fn test_option_053_dhcp_message_type() {
         use options::DhcpMessageTypes;
         // Parse all known options
