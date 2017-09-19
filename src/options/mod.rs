@@ -1,7 +1,9 @@
 mod parse;
+mod option82;
 
 use std::net::{IpAddr};
 pub use self::parse::parse;
+pub use self::option82::RelayAgentInformationSubOption;
 
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
@@ -76,6 +78,8 @@ pub enum DhcpOption {
     RebindingTimeValue(u32),
     ClassIdentifier,
     ClientIdentifier,
+
+    RelayAgentInformation(Vec<RelayAgentInformationSubOption>),
 }
 
 enum_from_primitive! {
