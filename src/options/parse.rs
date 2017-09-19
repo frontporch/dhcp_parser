@@ -7,6 +7,7 @@ use std::str;
 use std::convert::{From};
 use std::net::{IpAddr, Ipv4Addr};
 use num::{FromPrimitive};
+use options::option82::relay_agent_information_option_rfc3046;
 
 pub fn parse(bytes: &[u8]) -> Result<Vec<DhcpOption>> {
     let mut vec = Vec::new();
@@ -458,6 +459,7 @@ named!(dhcp_option(&'a [u8]) -> DhcpOption, alt!(
         | tcp_parameters
         | application_and_service_parameters
         | dhcp_extensions
+        | relay_agent_information_option_rfc3046
     )
 );
 

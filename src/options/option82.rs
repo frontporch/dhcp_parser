@@ -11,8 +11,8 @@ use options::DhcpOption::RelayAgentInformation;
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 pub enum RelayAgentInformationSubOption {
-    AgentCircuitID(String), // RFC 3046
-    AgentRemoteID(String), // RFC 3046 	 	 
+    AgentCircuitID(Vec<u8>), // RFC 3046
+    AgentRemoteID(Vec<u8>), // RFC 3046 	 	 
     DOCSISDeviceClass(i32), // RFC 3256
     LinkSelection(IpAddr), // RFC 3527
     SubscriberID(String), // RFC 3993
@@ -62,8 +62,22 @@ macro_rules! single_ip(
     )
 );
 
-length_specific_string!(agent_circuit_id, 1u8, AgentCircuitID);
-length_specific_string!(agent_remote_id, 2u8, AgentRemoteID);
+named!(agent_circuit_id<&[u8], RelayAgentInformationSubOption>,
+    chain!(
+        tag!([1u8]) ~
+        data: length_value!(be_u8, be_u8),
+        || { AgentCircuitID(data) }
+    )
+);
+
+named!(agent_remote_id<&[u8], RelayAgentInformationSubOption>,
+    chain!(
+        tag!([2u8]) ~
+        data: length_value!(be_u8, be_u8),
+        || { AgentRemoteID(data) }
+    )
+);
+
 named!(docsis_device_class<&[u8], RelayAgentInformationSubOption>,
     chain!(
         tag!([4u8]) ~
@@ -177,7 +191,7 @@ fn parse(bytes: &[u8]) -> Result<Vec<RelayAgentInformationSubOption>> {
     Ok(vec)
 }
 
-named!(relay_agent_information_option_rfc3046<&[u8], DhcpOption>,
+named!(pub relay_agent_information_option_rfc3046<&[u8], DhcpOption>,
     chain!(
         tag!([82u8]) ~
         data: map_res!(sized_buffer, parse),
@@ -196,14 +210,224 @@ named!(relay_agent_information_option_rfc3046<&[u8], DhcpOption>,
 
 
     #[test]
-    fn test_suboption_agent_circuit_id() {
+    fn test_suboption_001_agent_circuit_id() {
         let option = [
-            82u8,
-            6u8,
-            1u8,
-            4u8, 84u8, 101u8, 115u8, 116u8
+            82u8,   // Option 82
+            8u8,    // Option 82 Length
+            1u8,    // Suboption
+            6u8,    // Suboption Length
+            0u8, 1u8, 2u8, 3u8, 4u8, 5u8
         ];
-        let expected = RelayAgentInformation(vec![ AgentCircuitID("Test".to_string()) ]);
+        let expected = RelayAgentInformation(vec![ AgentCircuitID(vec![ 0u8, 1u8, 2u8, 3u8, 4u8, 5u8 ]) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
+                assert_eq!(expected, actual);
+            },
+            e => panic!("Result was {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_suboption_002_agent_remote_id() {
+        let option = [
+            82u8,   // Option 82
+            8u8,    // Option 82 Length
+            2u8,    // Suboption
+            6u8,    // Suboption Length
+            0u8, 1u8, 2u8, 3u8, 4u8, 5u8
+        ];
+        let expected = RelayAgentInformation(vec![ AgentRemoteID(vec![ 0u8, 1u8, 2u8, 3u8, 4u8, 5u8 ]) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
+                assert_eq!(expected, actual);
+            },
+            e => panic!("Result was {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_suboption_004_docsis_device_class() {
+        let option = [
+            82u8,   // Option 82
+            6u8,    // Option 82 Length
+            4u8,    // Suboption
+            4u8,    // Suboption Length
+            0u8, 0u8, 0u8, 1u8
+        ];
+        let expected = RelayAgentInformation(vec![ DOCSISDeviceClass(1) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
+                assert_eq!(expected, actual);
+            },
+            e => panic!("Result was {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_suboption_005_link_selection() {
+        let option = [
+            82u8,   // Option 82
+            6u8,    // Option 82 Length
+            5u8,    // Suboption
+            4u8,    // Suboption Length
+            192u8, 168u8, 1u8, 1u8
+        ];
+        let expected = RelayAgentInformation(vec![ LinkSelection(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1))) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
+                assert_eq!(expected, actual);
+            },
+            e => panic!("Result was {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_suboption_006_subscriber_id() {
+        let option = [
+            82u8,   // Option 82
+            6u8,    // Option 82 Length
+            6u8,    // Suboption
+            4u8,    // Suboption Length
+            84u8, 101u8, 115u8, 116u8
+        ];
+        let expected = RelayAgentInformation(vec![ SubscriberID("Test".to_string()) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
+                assert_eq!(expected, actual);
+            },
+            e => panic!("Result was {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_suboption_007_radius_attributes() {
+        let option = [
+            82u8,   // Option 82
+            8u8,    // Option 82 Length
+            7u8,    // Suboption
+            6u8,    // Suboption Length
+            0u8, 1u8, 2u8, 3u8, 4u8, 5u8
+        ];
+        let expected = RelayAgentInformation(vec![ RADIUSattributes(vec![ 0u8, 1u8, 2u8, 3u8, 4u8, 5u8 ]) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
+                assert_eq!(expected, actual);
+            },
+            e => panic!("Result was {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_suboption_008_authentication() {
+        let option = [
+            82u8,   // Option 82
+            8u8,    // Option 82 Length
+            8u8,    // Suboption
+            6u8,    // Suboption Length
+            0u8, 1u8, 2u8, 3u8, 4u8, 5u8
+        ];
+        let expected = RelayAgentInformation(vec![ Authentication(vec![ 0u8, 1u8, 2u8, 3u8, 4u8, 5u8 ]) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
+                assert_eq!(expected, actual);
+            },
+            e => panic!("Result was {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_suboption_009_vendor_specific_information() {
+        let option = [
+            82u8,   // Option 82
+            8u8,    // Option 82 Length
+            9u8,    // Suboption
+            6u8,    // Suboption Length
+            0u8, 1u8, 2u8, 3u8, 4u8, 5u8
+        ];
+        let expected = RelayAgentInformation(vec![ VendorSpecificInformation(vec![ 0u8, 1u8, 2u8, 3u8, 4u8, 5u8 ]) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
+                assert_eq!(expected, actual);
+            },
+            e => panic!("Result was {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_suboption_010_relay_agent_flags() {
+        let option = [
+            82u8,   // Option 82
+            3u8,    // Option 82 Length
+            10u8,    // Suboption
+            1u8,    // Suboption Length
+            123u8
+        ];
+        let expected = RelayAgentInformation(vec![ RelayAgentFlags(123u8) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
+                assert_eq!(expected, actual);
+            },
+            e => panic!("Result was {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_suboption_011_server_identifier_override() {
+        let option = [
+            82u8,   // Option 82
+            6u8,    // Option 82 Length
+            11u8,    // Suboption
+            4u8,    // Suboption Length
+            0u8, 0u8, 0u8, 1u8
+        ];
+        let expected = ServerIdentifierOverride(vec![ DOCSISDeviceClass(1) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
+                assert_eq!(expected, actual);
+            },
+            e => panic!("Result was {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_suboption_151_dhcp_v4_virtual_subnet_selection() {
+        let option = [
+            82u8,   // Option 82
+            8u8,    // Option 82 Length
+            151u8,    // Suboption
+            6u8,    // Suboption Length
+            0u8, 1u8, 2u8, 3u8, 4u8, 5u8
+        ];
+        let expected = RelayAgentInformation(vec![ DHCPv4VirtualSubnetSelection(vec![ 0u8, 1u8, 2u8, 3u8, 4u8, 5u8 ]) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
+                assert_eq!(expected, actual);
+            },
+            e => panic!("Result was {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_suboption_152_dhcp_v4_virtual_subnet_selection_control() {
+        let option = [
+            82u8,   // Option 82
+            8u8,    // Option 82 Length
+            152u8,    // Suboption
+            6u8,    // Suboption Length
+            0u8, 1u8, 2u8, 3u8, 4u8, 5u8
+        ];
+        let expected = RelayAgentInformation(vec![ DHCPv4VirtualSubnetSelectionControl(vec![ 0u8, 1u8, 2u8, 3u8, 4u8, 5u8 ]) ]);
         match relay_agent_information_option_rfc3046(&option) {
             IResult::Done(remaning, actual) => {
                 if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
