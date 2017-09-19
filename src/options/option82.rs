@@ -1,9 +1,8 @@
-use {Result, Error};
-use nom::{be_u8, be_u16, be_u32, be_i32, length_value, IResult, sized_buffer};
+use { Result };
+use nom::{be_u8, be_u32, be_i32, IResult, sized_buffer};
 use std::str;
 use std::convert::{From};
 use std::net::{IpAddr, Ipv4Addr};
-use num::{FromPrimitive};
 use self::RelayAgentInformationSubOption::*;
 use options::DhcpOption;
 use options::DhcpOption::RelayAgentInformation;
@@ -200,9 +199,7 @@ named!(pub relay_agent_information_option_rfc3046<&[u8], DhcpOption>,
 );
 
 #[cfg(test)] mod option_82_tests {
-    use super::RelayAgentInformationSubOption;
     use super::RelayAgentInformationSubOption::*;
-    use super::parse;
     use super::relay_agent_information_option_rfc3046;
     use std::net::{IpAddr, Ipv4Addr};
     use nom::IResult;
@@ -389,7 +386,7 @@ named!(pub relay_agent_information_option_rfc3046<&[u8], DhcpOption>,
             4u8,    // Suboption Length
             0u8, 0u8, 0u8, 1u8
         ];
-        let expected = ServerIdentifierOverride(vec![ DOCSISDeviceClass(1) ]);
+        let expected = RelayAgentInformation(vec![ ServerIdentifierOverride(1) ]);
         match relay_agent_information_option_rfc3046(&option) {
             IResult::Done(remaning, actual) => {
                 if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }

@@ -1,7 +1,7 @@
 use options::{DhcpOption};
 use options::DhcpOption::*;
-use {Result, Error};
-use nom::{be_u8, be_u16, be_u32, be_i32, length_value, IResult, sized_buffer};
+use { Result };
+use nom::{be_u8, be_u16, be_u32, be_i32, IResult, sized_buffer};
 use std::borrow::{ToOwned};
 use std::str;
 use std::convert::{From};
@@ -442,7 +442,7 @@ named!(dhcp_extensions<&[u8], DhcpOption>, alt!(
         | server_identifier
         | param_request_list    // 55
         | message
-/*         | max_message_size */
+        | max_message_size
 /*         | renewal_time_value */
 /*         | rebinding_time_value */
 /*         | class_identifier      // 60 */

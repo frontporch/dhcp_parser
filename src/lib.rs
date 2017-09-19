@@ -20,7 +20,7 @@ mod util;
 use std::fmt;
 use std::error;
 use std::convert::{From};
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::{ Ipv4Addr };
 use nom::{IResult, be_u8, be_u16, be_u32};
 
 use self::op::Op;
