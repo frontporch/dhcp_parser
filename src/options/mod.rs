@@ -79,6 +79,7 @@ pub enum DhcpOption {
     ClassIdentifier,
     ClientIdentifier,
 
+    // Option 82
     RelayAgentInformation(Vec<RelayAgentInformationSubOption>),
 }
 

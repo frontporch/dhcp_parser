@@ -5,6 +5,8 @@ use std::convert::{From};
 use std::net::{IpAddr, Ipv4Addr};
 use num::{FromPrimitive};
 use self::RelayAgentInformationSubOption::*;
+use options::DhcpOption;
+use options::DhcpOption::RelayAgentInformation;
 
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
@@ -127,7 +129,7 @@ named!(dhcp_v4_virtual_subnet_selection_control<&[u8], RelayAgentInformationSubO
 );
 
 // COLLECT
-named!(relay_agent_information_option_rfc3046<&[u8], RelayAgentInformationSubOption>, alt!(
+named!(option_82_parser<&[u8], RelayAgentInformationSubOption>, alt!(
           agent_circuit_id
         | agent_remote_id
         | docsis_device_class
@@ -143,17 +145,13 @@ named!(relay_agent_information_option_rfc3046<&[u8], RelayAgentInformationSubOpt
     )
 );
 
-pub fn parse_option_82(bytes: &[u8]) -> Result<Vec<RelayAgentInformationSubOption>> {
+fn parse(bytes: &[u8]) -> Result<Vec<RelayAgentInformationSubOption>> {
     let mut vec = Vec::new();
     if bytes.len() > 0 {
         let mut remaining_bytes = Some(bytes);
         while let Some(i) = remaining_bytes {
-            if let IResult::Done(rest, opt) = relay_agent_information_option_rfc3046(i) {
-                // if opt == DhcpOption::End {
-                //     remaining_bytes = None;
-                // } else {
-                    remaining_bytes = Some(rest);
-                // }
+            if let IResult::Done(rest, opt) = option_82_parser(i) {
+                remaining_bytes = Some(rest);
                 vec.push(opt);
             } else {
                 // Assume we got here because there's nothing left to parse
@@ -179,32 +177,36 @@ pub fn parse_option_82(bytes: &[u8]) -> Result<Vec<RelayAgentInformationSubOptio
     Ok(vec)
 }
 
-named!(export_me<&[u8], Vec<RelayAgentInformationSubOption>>,
+named!(relay_agent_information_option_rfc3046<&[u8], DhcpOption>,
     chain!(
         tag!([82u8]) ~
-        data: map_res!(sized_buffer, parse_option_82),
-        || { data }
+        data: map_res!(sized_buffer, parse),
+        || { RelayAgentInformation(data) }
     )
 );
 
 #[cfg(test)] mod option_82_tests {
     use super::RelayAgentInformationSubOption;
     use super::RelayAgentInformationSubOption::*;
-    use super::parse_option_82;
-    use super::export_me;
+    use super::parse;
+    use super::relay_agent_information_option_rfc3046;
     use std::net::{IpAddr, Ipv4Addr};
     use nom::IResult;
+    use options::DhcpOption::RelayAgentInformation;
+
 
     #[test]
     fn test_suboption_agent_circuit_id() {
         let option = [
-            82u8, 6u8,
-            1u8, 4u8, 84u8, 101u8, 115u8, 116u8
+            82u8,
+            6u8,
+            1u8,
+            4u8, 84u8, 101u8, 115u8, 116u8
         ];
-        let expected = vec![ AgentCircuitID("Test".to_string()) ];
-        match export_me(&option) {
-            IResult::Done(i, actual) => {
-                if i.len() > 0 { panic!("Remaining input was {:?}", i); }
+        let expected = RelayAgentInformation(vec![ AgentCircuitID("Test".to_string()) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
                 assert_eq!(expected, actual);
             },
             e => panic!("Result was {:?}", e),
