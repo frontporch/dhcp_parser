@@ -1,5 +1,5 @@
 mod parse;
-mod option82;
+pub mod option82;
 
 use std::net::{IpAddr};
 pub use self::parse::parse;
