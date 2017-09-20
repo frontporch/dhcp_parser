@@ -84,7 +84,7 @@ macro_rules! ip_pairs(
         named!($name<&[u8], DhcpOption>,
             chain!(
                 tag!([$tag]) ~
-                addrs: length_value!(num_u32s, be_u32),
+                addrs: length_count!(num_u32s, be_u32),
                 || { $variant(ip_addr_pairs(addrs)) }
             )
         );
@@ -102,7 +102,7 @@ macro_rules! many_ips(
         named!($name<&[u8], DhcpOption>,
             chain!(
                 tag!([$tag]) ~
-                addrs: length_value!(num_u32s, be_u32),
+                addrs: length_count!(num_u32s, be_u32),
                 || { $variant(many_ip_addrs(addrs)) }
             )
         );
@@ -274,7 +274,7 @@ named!(path_mtu_aging_timeout<&[u8], DhcpOption>,
 named!(path_mtu_plateau_table<&[u8], DhcpOption>,
     chain!(
         tag!([25u8]) ~
-        sizes: length_value!(num_u16s, be_u16),
+        sizes: length_count!(num_u16s, be_u16),
         || { PathMtuPlateauTable(sizes) }
     )
 );
@@ -371,7 +371,7 @@ many_ips!(ntp_servers, 42u8, NtpServers);
 named!(vendor_extensions<&[u8], DhcpOption>,
     chain!(
         tag!([43u8]) ~
-        bytes: length_value!(be_u8, be_u8),
+        bytes: length_count!(be_u8, be_u8),
         || { VendorExtensions(bytes) }
     )
 );
@@ -419,7 +419,7 @@ single_ip!(server_identifier, 54u8, ServerIdentifier);
 named!(param_request_list<&[u8], DhcpOption>,
     chain!(
         tag!([55u8]) ~
-        data: length_value!(be_u8, be_u8),
+        data: length_count!(be_u8, be_u8),
         || { ParamRequestList(data) }
     )
 );

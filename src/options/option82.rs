@@ -64,7 +64,7 @@ macro_rules! single_ip(
 named!(agent_circuit_id<&[u8], RelayAgentInformationSubOption>,
     chain!(
         tag!([1u8]) ~
-        data: length_value!(be_u8, be_u8),
+        data: length_count!(be_u8, be_u8),
         || { AgentCircuitID(data) }
     )
 );
@@ -72,7 +72,7 @@ named!(agent_circuit_id<&[u8], RelayAgentInformationSubOption>,
 named!(agent_remote_id<&[u8], RelayAgentInformationSubOption>,
     chain!(
         tag!([2u8]) ~
-        data: length_value!(be_u8, be_u8),
+        data: length_count!(be_u8, be_u8),
         || { AgentRemoteID(data) }
     )
 );
@@ -91,21 +91,21 @@ length_specific_string!(subscriber_id, 6u8, SubscriberID);
 named!(radius_attributes<&[u8], RelayAgentInformationSubOption>,
     chain!(
         tag!([7u8]) ~
-        data: length_value!(be_u8, be_u8),
+        data: length_count!(be_u8, be_u8),
         || { RADIUSattributes(data) }
     )
 );
 named!(authentication<&[u8], RelayAgentInformationSubOption>,
     chain!(
         tag!([8u8]) ~
-        data: length_value!(be_u8, be_u8),
+        data: length_count!(be_u8, be_u8),
         || { Authentication(data) }
     )
 );
 named!(vendor_specific_information<&[u8], RelayAgentInformationSubOption>,
     chain!(
         tag!([9u8]) ~
-        data: length_value!(be_u8, be_u8),
+        data: length_count!(be_u8, be_u8),
         || { VendorSpecificInformation(data) }
     )
 );
@@ -129,14 +129,14 @@ named!(server_identifier_override<&[u8], RelayAgentInformationSubOption>,
 named!(dhcp_v4_virtual_subnet_selection<&[u8], RelayAgentInformationSubOption>,
     chain!(
         tag!([151u8]) ~
-        data: length_value!(be_u8, be_u8),
+        data: length_count!(be_u8, be_u8),
         || { DHCPv4VirtualSubnetSelection(data) }
     )
 );
 named!(dhcp_v4_virtual_subnet_selection_control<&[u8], RelayAgentInformationSubOption>,
     chain!(
         tag!([152u8]) ~
-        data: length_value!(be_u8, be_u8),
+        data: length_count!(be_u8, be_u8),
         || { DHCPv4VirtualSubnetSelectionControl(data) }
     )
 );
