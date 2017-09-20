@@ -103,24 +103,24 @@ pub fn parse_message<'a>(bytes: &'a [u8]) -> Result<RawMessage<'a>> {
 }
 
 named!(_parse_message(&[u8]) -> RawMessage,
-    chain!(
-        pop: map_res!(be_u8, Op::from_byte) ~
-        phtype: map_res!(be_u8, Htype::from_byte) ~
-        phlen: be_u8 ~
-        phops: be_u8 ~
-        pxid: be_u32 ~
-        psecs: be_u16 ~
-        pflags: be_u16 ~
-        pciaddr: map!(be_u32, |a| Ipv4Addr::from(a)) ~
-        pyiaddr: map!(be_u32, |a| Ipv4Addr::from(a)) ~
-        psiaddr: map!(be_u32, |a| Ipv4Addr::from(a)) ~
-        pgiaddr: map!(be_u32, |a| Ipv4Addr::from(a)) ~
-        pchaddr: take!(16) ~
-        psname: take!(64) ~
-        pfile: take!(128) ~
-        _cookie: tag!(&MAGIC_COOKIE) ~
-        poptions: map_res!(take_rest, options::parse),
-    ||{
+    do_parse!(
+        pop: map_res!(be_u8, Op::from_byte) >>
+        phtype: map_res!(be_u8, Htype::from_byte) >>
+        phlen: be_u8 >>
+        phops: be_u8 >>
+        pxid: be_u32 >>
+        psecs: be_u16 >>
+        pflags: be_u16 >>
+        pciaddr: map!(be_u32, |a| Ipv4Addr::from(a)) >>
+        pyiaddr: map!(be_u32, |a| Ipv4Addr::from(a)) >>
+        psiaddr: map!(be_u32, |a| Ipv4Addr::from(a)) >>
+        pgiaddr: map!(be_u32, |a| Ipv4Addr::from(a)) >>
+        pchaddr: take!(16) >>
+        psname: take!(64) >>
+        pfile: take!(128) >>
+        _cookie: tag!(&MAGIC_COOKIE) >>
+        poptions: map_res!(take_rest, options::parse) >>
+    ({
         RawMessage {
             op: pop,
             htype: phtype,
@@ -138,7 +138,7 @@ named!(_parse_message(&[u8]) -> RawMessage,
             file: pfile,
             options: poptions,
         }
-    }
+    })
     )
 );
 

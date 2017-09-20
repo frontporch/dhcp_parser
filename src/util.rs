@@ -28,11 +28,11 @@ use std::str;
 #[test]
 fn test_take_rest() {
     named!(parts<&[u8],(&str,&str)>,
-        chain!(
-            key: map_res!(tag!("abcd"), str::from_utf8) ~
-            tag!(":") ~
-            value: map_res!(take_rest, str::from_utf8),
-            || {(key, value)}
+        do_parse!(
+            key: map_res!(tag!("abcd"), str::from_utf8) >>
+            tag!(":") >>
+            value: map_res!(take_rest, str::from_utf8) >>
+            ({(key, value)})
         )
     );
 

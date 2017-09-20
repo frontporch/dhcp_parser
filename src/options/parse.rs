@@ -82,10 +82,10 @@ fn num_u32s(bytes: &[u8]) -> IResult<&[u8], u8> {
 macro_rules! ip_pairs(
     ($name:ident, $tag:expr, $variant:expr) => (
         named!($name<&[u8], DhcpOption>,
-            chain!(
-                tag!([$tag]) ~
-                addrs: length_count!(num_u32s, be_u32),
-                || { $variant(ip_addr_pairs(addrs)) }
+            do_parse!(
+                tag!([$tag]) >>
+                addrs: length_count!(num_u32s, be_u32) >>
+                ({ $variant(ip_addr_pairs(addrs)) })
             )
         );
     )
@@ -100,10 +100,10 @@ macro_rules! ip_pairs(
 macro_rules! many_ips(
     ($name:ident, $tag:expr, $variant:expr) => (
         named!($name<&[u8], DhcpOption>,
-            chain!(
-                tag!([$tag]) ~
-                addrs: length_count!(num_u32s, be_u32),
-                || { $variant(many_ip_addrs(addrs)) }
+            do_parse!(
+                tag!([$tag]) >>
+                addrs: length_count!(num_u32s, be_u32) >>
+                ({ $variant(many_ip_addrs(addrs)) })
             )
         );
     )
@@ -120,10 +120,10 @@ macro_rules! many_ips(
 macro_rules! length_specific_string(
     ($name:ident, $tag:expr, $variant:expr) => (
         named!($name<&[u8], DhcpOption>,
-            chain!(
-                tag!([$tag]) ~
-                s: map_res!(sized_buffer, str::from_utf8),
-                || { $variant(s.to_owned()) }
+            do_parse!(
+                tag!([$tag]) >>
+                s: map_res!(sized_buffer, str::from_utf8) >>
+                ({ $variant(s.to_owned()) })
             )
         );
     )
@@ -132,11 +132,11 @@ macro_rules! length_specific_string(
 macro_rules! single_ip(
     ($name:ident, $tag:expr, $variant:expr) => (
         named!($name<&[u8], DhcpOption>,
-            chain!(
-                tag!([$tag]) ~
-                _length: be_u8 ~
-                addr: be_u32,
-                || { $variant(u32_to_ip(addr)) }
+            do_parse!(
+                tag!([$tag]) >>
+                _length: be_u8 >>
+                addr: be_u32 >>
+                ({ $variant(u32_to_ip(addr)) })
             )
         );
     )
@@ -145,11 +145,11 @@ macro_rules! single_ip(
 macro_rules! bool(
     ($name:ident, $tag:expr, $variant:expr) => (
         named!($name<&[u8], DhcpOption>,
-            chain!(
-                tag!([$tag]) ~
-                _length: be_u8 ~
-                val: be_u8,
-                || { $variant(val == 1u8) }
+            do_parse!(
+                tag!([$tag]) >>
+                _length: be_u8 >>
+                val: be_u8 >>
+                ({ $variant(val == 1u8) })
             )
         );
     )
@@ -158,11 +158,11 @@ macro_rules! bool(
 macro_rules! from_primitive(
     ($name:ident, $tag:expr, $variant:expr) => (
         named!($name<&[u8], DhcpOption>,
-            chain!(
-                tag!([$tag]) ~
-                _l: be_u8 ~
-                data: map_opt!(be_u8, FromPrimitive::from_u8),
-                || { $variant(data) }
+            do_parse!(
+                tag!([$tag]) >>
+                _l: be_u8 >>
+                data: map_opt!(be_u8, FromPrimitive::from_u8) >>
+                ({ $variant(data) })
             )
         );
     )
@@ -171,12 +171,12 @@ macro_rules! from_primitive(
 single_ip!(subnet_mask, 1u8, SubnetMask);
 
 named!(time_offset<&[u8], DhcpOption>,
-    chain!(
-        tag!([2u8]) ~
+    do_parse!(
+        tag!([2u8]) >>
         // length field, always 4
-        be_u8 ~
-        time: be_i32,
-        || { TimeOffset(time) }
+        be_u8 >>
+        time: be_i32 >>
+        ({ TimeOffset(time) })
     )
 );
 
@@ -193,11 +193,11 @@ many_ips!(resource_loc_server, 11u8, ResourceLocationServer);
 length_specific_string!(hostname, 12u8, HostName);
 
 named!(boot_file_size<&[u8], DhcpOption>,
-    chain!(
-        tag!([13u8]) ~
-        _length: be_u8 ~
-        s: be_u16,
-        || { BootFileSize(s) }
+    do_parse!(
+        tag!([13u8]) >>
+        _length: be_u8 >>
+        s: be_u16 >>
+        ({ BootFileSize(s) })
     )
 );
 
@@ -209,13 +209,14 @@ length_specific_string!(extensions_path, 18u8, ExtensionsPath);
 
 // COLLECT ALL OF THE ABOVE INTO ONE PARSER
 named!(vendor_extensions_rfc1497<&[u8], DhcpOption>, alt!(
-          chain!(tag!([0u8]),
-              || { Pad }
-          )
-        | chain!(
-                tag!([255u8]),
-                || { End }
-            )
+        do_parse!(
+            tag!([0u8]) >>
+            ({ Pad })
+        )
+        | do_parse!(
+            tag!([255u8]) >>
+            ({ End })
+        )
         | subnet_mask
         | time_offset
         | router
@@ -241,41 +242,41 @@ bool!(ip_forwarding, 19u8, IPForwarding);
 bool!(non_source_local_routing, 20u8, NonLocalSourceRouting);
 // TODO
 /* named!(policy_filter<&[u8], DhcpOption>, */
-/*     chain!( */
-/*         tag!([21u8]) ~ */
-/*         s: map!(sized_buffer, ip_addr_pairs), */
-/*         || { PolicyFilter(s) } */
+/*     do_parse!( */
+/*         tag!([21u8]) >> */
+/*         s: map!(sized_buffer, ip_addr_pairs) >> */
+/*         ({ PolicyFilter(s) }) */
 /*     ) */
 /* ); */
 named!(max_datagram_reassembly_size<&[u8], DhcpOption>,
-    chain!(
-        tag!([22u8]) ~
-        _len: be_u8 ~
-        aa: be_u16,
-        || { MaxDatagramReassemblySize(aa) }
+    do_parse!(
+        tag!([22u8]) >>
+        _len: be_u8 >>
+        aa: be_u16 >>
+        ({ MaxDatagramReassemblySize(aa) })
     )
 );
 named!(default_ip_ttl<&[u8], DhcpOption>,
-    chain!(
-        tag!([23u8]) ~
-        _length: be_u8 ~
-        ttl: be_u8,
-        || { DefaultIpTtl(ttl) }
+    do_parse!(
+        tag!([23u8]) >>
+        _length: be_u8 >>
+        ttl: be_u8 >>
+        ({ DefaultIpTtl(ttl) })
     )
 );
 named!(path_mtu_aging_timeout<&[u8], DhcpOption>,
-    chain!(
-        tag!([24u8]) ~
-        _length: be_u8 ~
-        timeout: be_u32,
-        || { PathMtuAgingTimeout(timeout) }
+    do_parse!(
+        tag!([24u8]) >>
+        _length: be_u8 >>
+        timeout: be_u32 >>
+        ({ PathMtuAgingTimeout(timeout) })
     )
 );
 named!(path_mtu_plateau_table<&[u8], DhcpOption>,
-    chain!(
-        tag!([25u8]) ~
-        sizes: length_count!(num_u16s, be_u16),
-        || { PathMtuPlateauTable(sizes) }
+    do_parse!(
+        tag!([25u8]) >>
+        sizes: length_count!(num_u16s, be_u16) >>
+        ({ PathMtuPlateauTable(sizes) })
     )
 );
 
@@ -292,11 +293,11 @@ named!(ip_layer_parameters_per_host<&[u8], DhcpOption>, alt!(
 );
 
 named!(interface_mtu<&[u8], DhcpOption>,
-    chain!(
-        tag!([26u8]) ~
-        _length: be_u8 ~
-        mtu: be_u16,
-        || { InterfaceMtu(mtu) }
+    do_parse!(
+        tag!([26u8]) >>
+        _length: be_u8 >>
+        mtu: be_u16 >>
+        ({ InterfaceMtu(mtu) })
     )
 );
 bool!(all_subnets_are_local, 27u8, AllSubnetsAreLocal);
@@ -322,11 +323,11 @@ named!(ip_layer_parameters_per_interface<&[u8], DhcpOption>, alt!(
 
 bool!(trailer_encapsulation, 34u8, TrailerEncapsulation);
 named!(arp_cache_timeout<&[u8], DhcpOption>,
-    chain!(
-        tag!([35u8]) ~
-        _length: be_u8 ~
-        timeout: be_u32,
-        || { ArpCacheTimeout(timeout) }
+    do_parse!(
+        tag!([35u8]) >>
+        _length: be_u8 >>
+        timeout: be_u32 >>
+        ({ ArpCacheTimeout(timeout) })
     )
 );
 bool!(ethernet_encapsulation, 36u8, EthernetEncapsulation);
@@ -340,19 +341,19 @@ named!(link_layer_parameters_per_interface<&[u8], DhcpOption>, alt!(
 );
 
 named!(tcp_default_ttl<&[u8], DhcpOption>,
-    chain!(
-        tag!([37u8]) ~
-        _length: be_u8 ~
-        ttl: be_u8,
-        || { TcpDefaultTtl(ttl) }
+    do_parse!(
+        tag!([37u8]) >>
+        _length: be_u8 >>
+        ttl: be_u8 >>
+        ({ TcpDefaultTtl(ttl) })
     )
 );
 named!(tcp_keepalive_interval<&[u8], DhcpOption>,
-    chain!(
-        tag!([38u8]) ~
-        _length: be_u8 ~
-        interval: be_u32,
-        || { TcpKeepaliveInterval(interval) }
+    do_parse!(
+        tag!([38u8]) >>
+        _length: be_u8 >>
+        interval: be_u32 >>
+        ({ TcpKeepaliveInterval(interval) })
     )
 );
 bool!(tcp_keepalive_garbage, 39u8, TcpKeepaliveGarbage);
@@ -369,20 +370,20 @@ length_specific_string!(nis_domain, 40u8, NisDomain);
 many_ips!(network_information_servers, 41u8, NetworkInformationServers);
 many_ips!(ntp_servers, 42u8, NtpServers);
 named!(vendor_extensions<&[u8], DhcpOption>,
-    chain!(
-        tag!([43u8]) ~
-        bytes: length_count!(be_u8, be_u8),
-        || { VendorExtensions(bytes) }
+    do_parse!(
+        tag!([43u8]) >>
+        bytes: length_count!(be_u8, be_u8) >>
+        ({ VendorExtensions(bytes) })
     )
 );
 many_ips!(net_bios_name_servers, 44u8, NetBiosNameServers);
 many_ips!(net_bios_datagram_distribution_server, 45u8, NetBiosDatagramDistributionServer);
 named!(net_bios_node_type<&[u8], DhcpOption>,
-    chain!(
-        tag!([46u8]) ~
-        _length: be_u8 ~
-        data: map_opt!(be_u8, FromPrimitive::from_u8),
-        || { NetBiosNodeType(data) }
+    do_parse!(
+        tag!([46u8]) >>
+        _length: be_u8 >>
+        data: map_opt!(be_u8, FromPrimitive::from_u8) >>
+        ({ NetBiosNodeType(data) })
     )
 );
 length_specific_string!(net_bios_scope, 47u8, NetBiosScope);
@@ -406,30 +407,30 @@ named!(application_and_service_parameters<&[u8], DhcpOption>, alt!(
 
 single_ip!(requested_ip_address, 50u8, RequestedIpAddress);
 named!(ip_address_lease_time<&[u8], DhcpOption>,
-    chain!(
-        tag!([51u8]) ~
-        _length: be_u8 ~
-        time: be_u32,
-        || { IpAddressLeaseTime(time) }
+    do_parse!(
+        tag!([51u8]) >>
+        _length: be_u8 >>
+        time: be_u32 >>
+        ({ IpAddressLeaseTime(time) })
     )
 );
 from_primitive!(option_overload, 52u8, OptionOverload);
 from_primitive!(message_type, 53u8, MessageType);
 single_ip!(server_identifier, 54u8, ServerIdentifier);
 named!(param_request_list<&[u8], DhcpOption>,
-    chain!(
-        tag!([55u8]) ~
-        data: length_count!(be_u8, be_u8),
-        || { ParamRequestList(data) }
+    do_parse!(
+        tag!([55u8]) >>
+        data: length_count!(be_u8, be_u8) >>
+        ({ ParamRequestList(data) })
     )
 );
 length_specific_string!(message, 56u8, Message);
 named!(max_message_size<&[u8], DhcpOption>,
-    chain!(
-        tag!([57u8]) ~
-        _l: be_u8 ~
-        size_: be_u16,
-        || { MaxMessageSize(size_) }
+    do_parse!(
+        tag!([57u8]) >>
+        _l: be_u8 >>
+        size_: be_u16 >>
+        ({ MaxMessageSize(size_) })
     )
 );
 

@@ -39,10 +39,10 @@ fn u32_to_ip(a: u32) -> IpAddr {
 macro_rules! length_specific_string(
     ($name:ident, $tag:expr, $variant:expr) => (
         named!($name<&[u8], RelayAgentInformationSubOption>,
-            chain!(
-                tag!([$tag]) ~
-                s: map_res!(sized_buffer, str::from_utf8),
-                || { $variant(s.to_owned()) }
+            do_parse!(
+                tag!([$tag]) >>
+                s: map_res!(sized_buffer, str::from_utf8) >>
+                ({ $variant(s.to_owned()) })
             )
         );
     )
@@ -51,93 +51,93 @@ macro_rules! length_specific_string(
 macro_rules! single_ip(
     ($name:ident, $tag:expr, $variant:expr) => (
         named!($name<&[u8], RelayAgentInformationSubOption>,
-            chain!(
-                tag!([$tag]) ~
-                _length: be_u8 ~
-                addr: be_u32,
-                || { $variant(u32_to_ip(addr)) }
+            do_parse!(
+                tag!([$tag]) >>
+                _length: be_u8 >>
+                addr: be_u32 >>
+                ({ $variant(u32_to_ip(addr)) })
             )
         );
     )
 );
 
 named!(agent_circuit_id<&[u8], RelayAgentInformationSubOption>,
-    chain!(
-        tag!([1u8]) ~
-        data: length_count!(be_u8, be_u8),
-        || { AgentCircuitID(data) }
+    do_parse!(
+        tag!([1u8]) >>
+        data: length_count!(be_u8, be_u8) >>
+        ({ AgentCircuitID(data) })
     )
 );
 
 named!(agent_remote_id<&[u8], RelayAgentInformationSubOption>,
-    chain!(
-        tag!([2u8]) ~
-        data: length_count!(be_u8, be_u8),
-        || { AgentRemoteID(data) }
+    do_parse!(
+        tag!([2u8]) >>
+        data: length_count!(be_u8, be_u8) >>
+        ({ AgentRemoteID(data) })
     )
 );
 
 named!(docsis_device_class<&[u8], RelayAgentInformationSubOption>,
-    chain!(
-        tag!([4u8]) ~
+    do_parse!(
+        tag!([4u8]) >>
         // length field, always 4
-        be_u8 ~
-        device_class: be_i32,
-        || { DOCSISDeviceClass(device_class) }
+        be_u8 >>
+        device_class: be_i32 >>
+        ({ DOCSISDeviceClass(device_class) })
     )
 );
 single_ip!(link_selection, 5u8, LinkSelection);
 length_specific_string!(subscriber_id, 6u8, SubscriberID);
 named!(radius_attributes<&[u8], RelayAgentInformationSubOption>,
-    chain!(
-        tag!([7u8]) ~
-        data: length_count!(be_u8, be_u8),
-        || { RADIUSattributes(data) }
+    do_parse!(
+        tag!([7u8]) >>
+        data: length_count!(be_u8, be_u8) >>
+        ({ RADIUSattributes(data) })
     )
 );
 named!(authentication<&[u8], RelayAgentInformationSubOption>,
-    chain!(
-        tag!([8u8]) ~
-        data: length_count!(be_u8, be_u8),
-        || { Authentication(data) }
+    do_parse!(
+        tag!([8u8]) >>
+        data: length_count!(be_u8, be_u8) >>
+        ({ Authentication(data) })
     )
 );
 named!(vendor_specific_information<&[u8], RelayAgentInformationSubOption>,
-    chain!(
-        tag!([9u8]) ~
-        data: length_count!(be_u8, be_u8),
-        || { VendorSpecificInformation(data) }
+    do_parse!(
+        tag!([9u8]) >>
+        data: length_count!(be_u8, be_u8) >>
+        ({ VendorSpecificInformation(data) })
     )
 );
 named!(relay_agent_flags<&[u8], RelayAgentInformationSubOption>,
-    chain!(
-        tag!([10u8]) ~
-        _length: be_u8 ~
-        relay_agent_flag: be_u8,
-        || { RelayAgentFlags(relay_agent_flag) }
+    do_parse!(
+        tag!([10u8]) >>
+        _length: be_u8 >>
+        relay_agent_flag: be_u8 >>
+        ({ RelayAgentFlags(relay_agent_flag) })
     )
 );
 named!(server_identifier_override<&[u8], RelayAgentInformationSubOption>,
-    chain!(
-        tag!([11u8]) ~
+    do_parse!(
+        tag!([11u8]) >>
         // length field, always 4
-        be_u8 ~
-        identifier: be_i32,
-        || { ServerIdentifierOverride(identifier) }
+        be_u8 >>
+        identifier: be_i32 >>
+        ({ ServerIdentifierOverride(identifier) })
     )
 );
 named!(dhcp_v4_virtual_subnet_selection<&[u8], RelayAgentInformationSubOption>,
-    chain!(
-        tag!([151u8]) ~
-        data: length_count!(be_u8, be_u8),
-        || { DHCPv4VirtualSubnetSelection(data) }
+    do_parse!(
+        tag!([151u8]) >>
+        data: length_count!(be_u8, be_u8) >>
+        ({ DHCPv4VirtualSubnetSelection(data) })
     )
 );
 named!(dhcp_v4_virtual_subnet_selection_control<&[u8], RelayAgentInformationSubOption>,
-    chain!(
-        tag!([152u8]) ~
-        data: length_count!(be_u8, be_u8),
-        || { DHCPv4VirtualSubnetSelectionControl(data) }
+    do_parse!(
+        tag!([152u8]) >>
+        data: length_count!(be_u8, be_u8) >>
+        ({ DHCPv4VirtualSubnetSelectionControl(data) })
     )
 );
 
@@ -191,10 +191,10 @@ fn parse(bytes: &[u8]) -> Result<Vec<RelayAgentInformationSubOption>> {
 }
 
 named!(pub relay_agent_information_option_rfc3046<&[u8], DhcpOption>,
-    chain!(
-        tag!([82u8]) ~
-        data: map_res!(sized_buffer, parse),
-        || { RelayAgentInformation(data) }
+    do_parse!(
+        tag!([82u8]) >>
+        data: map_res!(sized_buffer, parse) >>
+        ({ RelayAgentInformation(data) })
     )
 );
 
