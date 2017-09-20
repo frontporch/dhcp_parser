@@ -9,7 +9,7 @@ DHCP parser using nom
 license = "MIT"
 
 [dependencies]
-nom = "0.3.11"
+nom = "1.0.0"
 enum_primitive = "0.1.1"
 
 [dependencies.num]

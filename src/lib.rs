@@ -102,7 +102,7 @@ pub fn parse_message<'a>(bytes: &'a [u8]) -> Result<RawMessage<'a>> {
     }
 }
 
-named!(_parse_message(&'a [u8]) -> RawMessage<'a>,
+named!(_parse_message(&[u8]) -> RawMessage,
     chain!(
         pop: map_res!(be_u8, Op::from_byte) ~
         phtype: map_res!(be_u8, Htype::from_byte) ~

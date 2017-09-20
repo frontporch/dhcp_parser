@@ -451,7 +451,7 @@ named!(dhcp_extensions<&[u8], DhcpOption>, alt!(
 );
 
 // Main parser
-named!(dhcp_option(&'a [u8]) -> DhcpOption, alt!(
+named!(dhcp_option(&[u8]) -> DhcpOption, alt!(
           vendor_extensions_rfc1497
         | ip_layer_parameters_per_host
         | ip_layer_parameters_per_interface
