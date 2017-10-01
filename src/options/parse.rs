@@ -692,15 +692,4 @@ named!(dhcp_option(&[u8]) -> DhcpOption, alt!(
             }
         }
     }
-    #[test]
-    fn test_option_overrun() {
-        // use options::DhcpMessageTypes;
-        let option = vec![
-            0x3a, 0xfe, 0x00, 0x00, 0x01, 0x2c, 0xff,
-        ];
-        // let expected = None;
-        let actual = parse(&option);
-        // assert_eq!(expected, actual);
-        println!("{:?}", actual);
-    }    
 }
