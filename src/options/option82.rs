@@ -161,27 +161,56 @@ named!(option_82_parser<&[u8], RelayAgentInformationSubOption>, alt!(
 fn parse(bytes: &[u8]) -> Result<Vec<RelayAgentInformationSubOption>> {
     let mut vec = Vec::new();
     if bytes.len() > 0 {
-        let mut remaining_bytes = Some(bytes);
-        while let Some(i) = remaining_bytes {
-            if let IResult::Done(rest, opt) = option_82_parser(i) {
-                remaining_bytes = Some(rest);
+        let mut remaining = Some(bytes);
+        while let Some(unparsed) = remaining {
+            // Do some basic sanity checks before actually parsing
+            match unparsed.len() {
+                0 | 1 | 2 => {
+                    // Shouldn't get here, but just in case
+                    remaining = None;
+                    continue;
+                },
+                _ => {
+                    // Assume it's an option in the standard format:
+                    // [Option Number Field] (1 byte) [Length Field] (1 byte) [Rest of option...]
+                    // and calculte the option length as:
+                    // opt_num_field (1 byte) + opt_len_field (1 byte) + value_in_opt_len_field
+                    let option_length: usize = 2 + (unparsed[1] as usize);
+                    // Sanity check the option is actually within bounds of
+                    // remaining byte array
+                    if option_length > unparsed.len() {
+                        remaining = None;
+                        continue;
+                    }
+                },
+            }
+
+            // If an option was successfully parsed
+            if let IResult::Done(rest, opt) = option_82_parser(unparsed) {
+                // If this is the end of options
+                if rest.len() < 3 {
+                    remaining = None;
+                } else {
+                    remaining = Some(rest);
+                }
                 vec.push(opt);
             } else {
-                // Assume we got here because there's nothing left to parse
-                remaining_bytes = None;
+                // It's either an:
+                //   • error/invalid option
+                //   • option we don't know
+                // In either case, assume initially that there's nothing left we can parse
+                remaining = None;
 
-                // If there was an error from an unknown option and there's enough bytes
-                // left to reconstitute an option see if we can recover gracefully.
-                if i.len() > 2 {
+                // See if we can recover gracefully and continue parsing any remaining options
+                if unparsed.len() > 2 {
                     // Skip this option but assume it's an option in the
                     // standard format & parse the remaining options if possible
-                    // Start of next option calculated as (opt_num + opt_len + 1)
-                    let start_of_next_option = (1 + i[1] + 1) as usize;
+                    let start_of_next_option: usize = 2 + (unparsed[1] as usize);
 
-                    // Sanity check the start of next option is actually within
-                    // bounds of remaining byte array
-                    if i.len() > start_of_next_option {
-                        remaining_bytes = Some(&i[start_of_next_option..]);
+                    // Sanity check the start of (any) remaning options are within
+                    // the bounds of remaining byte array
+                    if unparsed.len() > start_of_next_option {
+                        remaining = Some(&unparsed[start_of_next_option..]);
                     }
                 }
             }
@@ -205,6 +234,94 @@ named!(pub relay_agent_information_option_rfc3046<&[u8], DhcpOption>,
     use nom::IResult;
     use options::DhcpOption::RelayAgentInformation;
 
+
+    #[test]
+    fn test_unknown_option() {
+        let option = [
+            82u8,   // Option 82
+            16u8,    // Option 82 Length
+            150u8,    // Suboption (Unknown)
+            6u8,    // Suboption Length
+            0u8, 1u8, 2u8, 3u8, 4u8, 5u8,
+            1u8,    // Suboption
+            6u8,    // Suboption Length
+            0u8, 1u8, 2u8, 3u8, 4u8, 5u8,
+        ];
+        let expected = RelayAgentInformation(vec![ AgentCircuitID(vec![ 0u8, 1u8, 2u8, 3u8, 4u8, 5u8 ]) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
+                assert_eq!(expected, actual);
+            },
+            e => panic!("Result was {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_invalid_option_length_buffer_overrun() {
+        let option = [
+            82u8,   // Option 82
+            16u8,    // Option 82 Length
+            1u8,    // Suboption
+            6u8,    // Suboption Length
+            0u8, 1u8, 2u8, 3u8, 4u8, 5u8,
+            2u8,    // Suboption
+            100u8,    // Suboption Length (Invalid)
+            0u8, 1u8, 2u8, 3u8, 4u8, 5u8,
+        ];
+        let expected = RelayAgentInformation(vec![ AgentCircuitID(vec![ 0u8, 1u8, 2u8, 3u8, 4u8, 5u8 ]) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
+                assert_eq!(expected, actual);
+            },
+            e => panic!("Result was {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_invalid_option_length_datatype_overflow() {
+        // A option length at or near the bounds of the u8 datatype
+        // could cause an overflow of any u8's that we're using for
+        // length calculations, so we test how we handle that here
+        let option = [
+            82u8,   // Option 82
+            16u8,    // Option 82 Length
+            1u8,    // Suboption
+            6u8,    // Suboption Length
+            0u8, 1u8, 2u8, 3u8, 4u8, 5u8,
+            2u8,    // Suboption
+            254u8,    // Suboption Length (Invalid)
+            0u8, 1u8, 2u8, 3u8, 4u8, 5u8,
+        ];
+        let expected = RelayAgentInformation(vec![ AgentCircuitID(vec![ 0u8, 1u8, 2u8, 3u8, 4u8, 5u8 ]) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
+                assert_eq!(expected, actual);
+            },
+            e => panic!("Result was {:?}", e),
+        }
+
+        let option = [
+            82u8,   // Option 82
+            16u8,    // Option 82 Length
+            1u8,    // Suboption
+            6u8,    // Suboption Length
+            0u8, 1u8, 2u8, 3u8, 4u8, 5u8,
+            2u8,    // Suboption
+            255u8,    // Suboption Length (Invalid)
+            0u8, 1u8, 2u8, 3u8, 4u8, 5u8,
+        ];
+        let expected = RelayAgentInformation(vec![ AgentCircuitID(vec![ 0u8, 1u8, 2u8, 3u8, 4u8, 5u8 ]) ]);
+        match relay_agent_information_option_rfc3046(&option) {
+            IResult::Done(remaning, actual) => {
+                if remaning.len() > 0 { panic!("Remaining input was {:?}", remaning); }
+                assert_eq!(expected, actual);
+            },
+            e => panic!("Result was {:?}", e),
+        }
+    }
 
     #[test]
     fn test_suboption_001_agent_circuit_id() {
