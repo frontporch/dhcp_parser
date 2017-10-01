@@ -12,31 +12,69 @@ use options::option82::relay_agent_information_option_rfc3046;
 pub fn parse(bytes: &[u8]) -> Result<Vec<DhcpOption>> {
     let mut vec = Vec::new();
     if bytes.len() > 0 {
-        let mut remaining_bytes = Some(bytes);
-        while let Some(i) = remaining_bytes {
-            if let IResult::Done(rest, opt) = dhcp_option(i) {
-                if opt == DhcpOption::End {
-                    remaining_bytes = None;
+        let mut remaining = Some(bytes);
+        while let Some(unparsed) = remaining {
+            // Do some basic sanity checks before actually parsing
+            match unparsed.len() {
+                0 => {
+                    // Shouldn't get here, but just in case
+                    remaining = None;
+                    continue;
+                },
+                1 => {
+                    // If there's only a single byte left
+                    // make sure it's a valid single byte option
+                    if unparsed[0] != 0u8 && unparsed[0] != 255u8 {
+                        remaining = None;
+                        continue;
+                    }
+                },
+                // TODO: Any 2 byte options?
+                _ => {
+                    // If there are several bytes left and the next byte
+                    // is not a single byte option
+                    if unparsed[0] != 0u8 && unparsed[0] != 255u8 {
+                        // Assume it's an option in the standard format:
+                        // [Option Number Field] (1 byte) [Length Field] (1 byte) [Rest of option...]
+                        // and calculte the option length as:
+                        // opt_num_field (1 byte) + opt_len_field (1 byte) + value_in_opt_len_field
+                        let option_length: usize = 2 + (unparsed[1] as usize);
+                        // Sanity check the option is actually within bounds of
+                        // remaining byte array
+                        if option_length > unparsed.len() {
+                            remaining = None;
+                            continue;
+                        }
+                    }
+                },
+            }
+
+            // If an option was successfully parsed
+            if let IResult::Done(rest, opt) = dhcp_option(unparsed) {
+                // If this is the end of options
+                if opt == DhcpOption::End || rest.len() == 0 {
+                    remaining = None;
                 } else {
-                    remaining_bytes = Some(rest);
+                    remaining = Some(rest);
                 }
                 vec.push(opt);
             } else {
-                // Assume we got here because there's nothing left to parse
-                remaining_bytes = None;
+                // It's either an:
+                //   • error/invalid option
+                //   • option we don't know
+                // In either case, assume initially that there's nothing left we can parse
+                remaining = None;
 
-                // If there was an error from an unknown option and there's enough bytes
-                // left to reconstitute an option see if we can recover gracefully.
-                if i.len() > 2 {
+                // See if we can recover gracefully and continue parsing any remaining options
+                if unparsed.len() > 2 {
                     // Skip this option but assume it's an option in the
                     // standard format & parse the remaining options if possible
-                    // Start of next option calculated as (opt_num + opt_len + 1)
-                    let start_of_next_option = (1 + i[1] + 1) as usize;
+                    let start_of_next_option: usize = 2 + (unparsed[1] as usize);
 
-                    // Sanity check the start of next option is actually within
-                    // bounds of remaining byte array
-                    if i.len() > start_of_next_option {
-                        remaining_bytes = Some(&i[start_of_next_option..]);
+                    // Sanity check the start of (any) remaning options are within
+                    // the bounds of remaining byte array
+                    if unparsed.len() > start_of_next_option {
+                        remaining = Some(&unparsed[start_of_next_option..]);
                     }
                 }
             }
@@ -496,21 +534,64 @@ named!(dhcp_option(&[u8]) -> DhcpOption, alt!(
         let option = vec![
             0u8,
             254u8, 4u8, 192u8, 168u8, 1u8, 1u8,
-            0u8
+            0u8,
+            255u8
         ];
         let expected: Vec<DhcpOption> = vec![
             DhcpOption::Pad,
-            DhcpOption::Pad
+            DhcpOption::Pad,
+            DhcpOption::End
         ];
         let actual = parse(&option).unwrap();
         assert_eq!(expected, actual);
     }
 
     #[test]
-    fn test_invalid_option_length_buffer_overflow() {
+    fn test_invalid_option_length_buffer_overrun() {
+        // Declare an options length that is longer
+        // than the remaning buffer
         let option = vec![
             0u8,
-            12u8, 10u8, 1u8
+            12u8, 10u8, 1u8,
+            255u8
+        ];
+        let expected: Vec<DhcpOption> = vec![
+            DhcpOption::Pad,
+        ];
+        let actual = parse(&option).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_invalid_option_length_datatype_overflow() {
+        // A option length at or near the bounds of the u8 datatype
+        // could cause an overflow of any u8's that we're using for
+        // length calculations, so we test how we handle that here
+        let option = vec![
+            0u8,
+            12u8, 254u8,
+            0u8,
+            0u8,
+            0u8,
+            0u8,
+            0u8,
+            255u8
+        ];
+        let expected: Vec<DhcpOption> = vec![
+            DhcpOption::Pad,
+        ];
+        let actual = parse(&option).unwrap();
+        assert_eq!(expected, actual);
+
+        let option = vec![
+            0u8,
+            12u8, 255u8,
+            0u8,
+            0u8,
+            0u8,
+            0u8,
+            0u8,
+            255u8
         ];
         let expected: Vec<DhcpOption> = vec![
             DhcpOption::Pad,
@@ -586,13 +667,13 @@ named!(dhcp_option(&[u8]) -> DhcpOption, alt!(
         use options::DhcpMessageTypes;
         // Parse all known options
         let options = vec![
-            vec![ 53u8, 3u8, 1u8 ], // Discover
-            vec![ 53u8, 3u8, 2u8 ], // Offer
-            vec![ 53u8, 3u8, 3u8 ], // Request
-            vec![ 53u8, 3u8, 4u8 ], // Decline
-            vec![ 53u8, 3u8, 5u8 ], // Ack
-            vec![ 53u8, 3u8, 6u8 ], // Nak
-            vec![ 53u8, 3u8, 7u8 ], // Release
+            vec![ 53u8, 1u8, 1u8 ], // Discover
+            vec![ 53u8, 1u8, 2u8 ], // Offer
+            vec![ 53u8, 1u8, 3u8 ], // Request
+            vec![ 53u8, 1u8, 4u8 ], // Decline
+            vec![ 53u8, 1u8, 5u8 ], // Ack
+            vec![ 53u8, 1u8, 6u8 ], // Nak
+            vec![ 53u8, 1u8, 7u8 ], // Release
         ];
         let message_types = vec![
             DhcpMessageTypes::Discover,
@@ -611,4 +692,15 @@ named!(dhcp_option(&[u8]) -> DhcpOption, alt!(
             }
         }
     }
+    #[test]
+    fn test_option_overrun() {
+        // use options::DhcpMessageTypes;
+        let option = vec![
+            0x3a, 0xfe, 0x00, 0x00, 0x01, 0x2c, 0xff,
+        ];
+        // let expected = None;
+        let actual = parse(&option);
+        // assert_eq!(expected, actual);
+        println!("{:?}", actual);
+    }    
 }
